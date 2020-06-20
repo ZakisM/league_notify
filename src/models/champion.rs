@@ -7,9 +7,9 @@ pub struct ChampionWinRate {
     wins: u8,
     losses: u8,
     win_rate: u16,
-    team_id: Option<u8>,
-    rank: Option<String>,
-    summoner_name: Option<String>,
+    team_id: u8,
+    rank: String,
+    summoner_name: String,
 }
 
 impl std::cmp::Ord for ChampionWinRate {
@@ -45,9 +45,9 @@ impl ChampionWinRate {
             wins,
             losses,
             win_rate,
-            team_id: None,
-            rank: None,
-            summoner_name: None,
+            team_id: 0,
+            rank: "Unranked".to_owned(),
+            summoner_name: "Unknown".to_owned(),
         }
     }
 
@@ -60,35 +60,26 @@ impl ChampionWinRate {
     }
 
     pub fn team_id(&self) -> u8 {
-        match self.team_id {
-            None => 1,
-            Some(id) => id,
-        }
+        self.team_id
     }
 
     pub fn set_team_id(&mut self, team_id: u8) {
-        self.team_id = Some(team_id)
+        self.team_id = team_id
     }
 
     pub fn rank(&self) -> &str {
-        match &self.rank {
-            None => "Unranked",
-            Some(r) => r,
-        }
+        &self.rank
     }
 
     pub fn set_rank(&mut self, rank: String) {
-        self.rank = Some(rank)
+        self.rank = rank
     }
 
     pub fn summoner_name(&self) -> &str {
-        match &self.summoner_name {
-            None => "Unknown",
-            Some(r) => r,
-        }
+        &self.summoner_name
     }
 
     pub fn set_summoner_name(&mut self, summoner_name: String) {
-        self.summoner_name = Some(summoner_name)
+        self.summoner_name = summoner_name
     }
 }
