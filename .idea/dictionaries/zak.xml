@@ -1,0 +1,28 @@
+<component name="ProjectDictionaryState">
+  <dictionary name="zak">
+    <words>
+      <w>armorperlevel</w>
+      <w>attackdamage</w>
+      <w>attackdamageperlevel</w>
+      <w>attackrange</w>
+      <w>attackspeed</w>
+      <w>attackspeedperlevel</w>
+      <w>crit</w>
+      <w>critperlevel</w>
+      <w>hpperlevel</w>
+      <w>hpregen</w>
+      <w>hpregenperlevel</w>
+      <w>matchlists</w>
+      <w>minfo</w>
+      <w>movespeed</w>
+      <w>mpperlevel</w>
+      <w>mpregen</w>
+      <w>mpregenperlevel</w>
+      <w>partype</w>
+      <w>puuid</w>
+      <w>riotgames</w>
+      <w>spellblock</w>
+      <w>spellblockperlevel</w>
+    </words>
+  </dictionary>
+</component>

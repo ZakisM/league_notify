@@ -1,0 +1,7 @@
+pub mod champion;
+pub mod ddragon_champions;
+pub mod errors;
+pub mod leagues;
+pub mod lol_match;
+pub mod spectator;
+pub mod summoner;
