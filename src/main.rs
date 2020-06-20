@@ -100,7 +100,7 @@ pub async fn do_it(api_key: &str, summoner_name: &str) -> Result<()> {
                             }
                         }
 
-                        all_cwr.sort_by(|a, b| a.team_id().cmp(&b.team_id()));
+                        all_cwr.sort();
 
                         let player_color = comfy_table::Color::Rgb {
                             r: 239,

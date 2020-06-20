@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 #[derive(Debug)]
 pub struct ChampionWinRate {
     champion_id: u32,
@@ -8,6 +10,26 @@ pub struct ChampionWinRate {
     team_id: Option<u8>,
     rank: Option<String>,
     summoner_name: Option<String>,
+}
+
+impl std::cmp::Ord for ChampionWinRate {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.team_id.cmp(&other.team_id).then(self.win_rate.cmp(&other.win_rate).reverse())
+    }
+}
+
+impl std::cmp::PartialOrd for ChampionWinRate {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl std::cmp::Eq for ChampionWinRate {}
+
+impl std::cmp::PartialEq for ChampionWinRate {
+    fn eq(&self, other: &Self) -> bool {
+        self.champion_id == other.champion_id
+    }
 }
 
 impl ChampionWinRate {
