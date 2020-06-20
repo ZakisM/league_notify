@@ -65,14 +65,15 @@ pub async fn do_it(api_key: &str, summoner_name: &str) -> Result<()> {
         .get_summoner(summoner::SummonerEndpoint::ByName(summoner_name))
         .await
     {
-        Ok(summoner) => {
+        Ok(my_summoner) => {
             let mut games_notified = HashSet::new();
 
             loop {
                 if let Ok((current_game_summoners, game_id)) =
-                    summoner.current_game_summoners().await
+                    my_summoner.current_game_summoners().await
                 {
-                    let game_notified_id = format!("{}-{}", summoner.summoner_info.name, game_id);
+                    let game_notified_id =
+                        format!("{}-{}", my_summoner.summoner_info.name, game_id);
 
                     if !games_notified.contains(&game_notified_id) {
                         let mut all_cwr = Vec::with_capacity(10);
@@ -80,6 +81,7 @@ pub async fn do_it(api_key: &str, summoner_name: &str) -> Result<()> {
                         for (summoner, cgi) in current_game_summoners.iter() {
                             if let Ok(mut cwr) = summoner.champion_win_rate(cgi.champion_id).await {
                                 cwr.set_team_id(cgi.team_id);
+                                cwr.set_summoner_name(summoner.summoner_info.name.clone());
 
                                 if let Ok(rank) = summoner.solo_queue_rank().await {
                                     cwr.set_rank(format!(
@@ -132,12 +134,16 @@ pub async fn do_it(api_key: &str, summoner_name: &str) -> Result<()> {
                         ]);
 
                         for cwr in all_cwr.iter() {
-                            let name_colour = match cwr.team_id() {
-                                100 => team_1_colour,
-                                200 => team_2_colour,
-                                0 => player_color,
-                                _ => no_colour,
-                            };
+                            let name_colour =
+                                if cwr.summoner_name() == my_summoner.summoner_info.name {
+                                    player_color
+                                } else {
+                                    match cwr.team_id() {
+                                        100 => team_1_colour,
+                                        200 => team_2_colour,
+                                        _ => no_colour,
+                                    }
+                                };
 
                             table.add_row(vec![
                                 comfy_table::Cell::new(cwr.champion_name()).fg(name_colour),

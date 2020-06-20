@@ -7,6 +7,7 @@ pub struct ChampionWinRate {
     win_rate: u16,
     team_id: Option<u8>,
     rank: Option<String>,
+    summoner_name: Option<String>,
 }
 
 impl ChampionWinRate {
@@ -24,6 +25,7 @@ impl ChampionWinRate {
             win_rate,
             team_id: None,
             rank: None,
+            summoner_name: None,
         }
     }
 
@@ -55,5 +57,16 @@ impl ChampionWinRate {
 
     pub fn set_rank(&mut self, rank: String) {
         self.rank = Some(rank)
+    }
+
+    pub fn summoner_name(&self) -> &str {
+        match &self.summoner_name {
+            None => "Unknown",
+            Some(r) => r,
+        }
+    }
+
+    pub fn set_summoner_name(&mut self, summoner_name: String) {
+        self.summoner_name = Some(summoner_name)
     }
 }

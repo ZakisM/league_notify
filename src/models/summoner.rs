@@ -126,15 +126,7 @@ impl<'a> Summoner<'a> {
                         .participants
                         .iter()
                         .find(|p| p.summoner_id == summoner.summoner_info.id)
-                        .map(|p| {
-                            let team_id = if p.summoner_id == self.summoner_info.id {
-                                0
-                            } else {
-                                p.team_id
-                            };
-
-                            (p.champion_id as u32, team_id)
-                        })
+                        .map(|p| (p.champion_id as u32, p.team_id))
                         .expect("Couldn't map summoner to their champion");
 
                     summoners.insert(
