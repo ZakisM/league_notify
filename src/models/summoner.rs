@@ -1,6 +1,6 @@
 use core::fmt;
-use std::collections::HashMap;
 
+use getset::Getters;
 use serde::export::Formatter;
 use serde::{Deserialize, Serialize};
 use tokio::stream::StreamExt;
@@ -15,35 +15,55 @@ use crate::models::lol_match::{LeagueMatchList, MatchInfo};
 use crate::models::spectator::SpectatorInfo;
 use crate::Result;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Getters, Serialize, Deserialize)]
+#[get = "pub"]
 #[serde(rename_all = "camelCase")]
 pub struct SummonerInfo {
-    pub id: String,
-    pub account_id: String,
-    pub puuid: String,
-    pub name: String,
-    pub profile_icon_id: i64,
-    pub revision_date: i64,
-    pub summoner_level: i64,
+    id: String,
+    account_id: String,
+    puuid: String,
+    name: String,
+    profile_icon_id: i64,
+    revision_date: i64,
+    summoner_level: i64,
 }
 
-#[derive(Debug)]
-pub struct SummonerCurrentGameInfo {
-    pub champion_id: u32,
-    pub team_id: u8,
+#[derive(Debug, Getters)]
+#[get = "pub"]
+pub struct SummonerCurrentGameInfo<'a> {
+    summoner: Summoner<'a>,
+    champion_id: u32,
+    team_id: u8,
 }
 
-impl SummonerCurrentGameInfo {
-    pub fn new(champion_id: u32, team_id: u8) -> Self {
+impl<'a> SummonerCurrentGameInfo<'a> {
+    pub fn new(summoner: Summoner<'a>, champion_id: u32, team_id: u8) -> Self {
         SummonerCurrentGameInfo {
+            summoner,
             champion_id,
             team_id,
         }
     }
 }
 
+#[derive(Getters)]
+#[get = "pub"]
+pub struct CurrentGameInfo<'a> {
+    game_id: u64,
+    summoners: Vec<SummonerCurrentGameInfo<'a>>,
+}
+
+impl<'a> CurrentGameInfo<'a> {
+    pub fn new(game_id: u64, summoners: Vec<SummonerCurrentGameInfo<'a>>) -> Self {
+        CurrentGameInfo { game_id, summoners }
+    }
+}
+
+#[derive(Getters)]
+#[get = "pub"]
 pub struct Summoner<'a> {
-    pub summoner_info: SummonerInfo,
+    summoner_info: SummonerInfo,
+    #[get]
     api: &'a Api<'a>,
 }
 
@@ -96,49 +116,48 @@ impl<'a> Summoner<'a> {
 
         match league_ranks
             .into_iter()
-            .find(|l| &l.queue_type == "RANKED_SOLO_5x5")
+            .find(|l| l.queue_type() == "RANKED_SOLO_5x5")
         {
             None => Err(ApiError::new("Could not find league rank.")),
             Some(l) => Ok(l),
         }
     }
 
-    pub async fn current_game_summoners(
-        &self,
-    ) -> Result<(HashMap<Summoner<'_>, SummonerCurrentGameInfo>, u64)> {
+    pub async fn current_game_info(&self) -> Result<CurrentGameInfo<'_>> {
         let current_game = self.spectator().await?;
 
         let mut all_summoners = futures::stream::FuturesUnordered::new();
 
-        current_game.participants.iter().for_each(|p| {
+        current_game.participants().iter().for_each(|p| {
             all_summoners.push(
                 self.api
-                    .get_summoner(summoner::SummonerEndpoint::ByName(&p.summoner_name)),
+                    .get_summoner(summoner::SummonerEndpoint::ByName(&p.summoner_name())),
             )
         });
 
-        let mut summoners = HashMap::with_capacity(10);
+        let mut cgs = Vec::with_capacity(10);
 
         while let Some(summoner) = all_summoners.next().await {
             match summoner {
                 Ok(summoner) => {
                     let (champion_id, team_id) = current_game
-                        .participants
+                        .participants()
                         .iter()
-                        .find(|p| p.summoner_id == summoner.summoner_info.id)
-                        .map(|p| (p.champion_id as u32, p.team_id))
+                        .find(|p| *p.summoner_id() == summoner.summoner_info.id)
+                        .map(|p| (*p.champion_id() as u32, p.team_id()))
                         .expect("Couldn't map summoner to their champion");
 
-                    summoners.insert(
+                    cgs.push(SummonerCurrentGameInfo::new(
                         summoner,
-                        SummonerCurrentGameInfo::new(champion_id, team_id as u8),
-                    );
+                        champion_id,
+                        *team_id as u8,
+                    ));
                 }
                 Err(e) => error!("{}", e),
             }
         }
 
-        Ok((summoners, current_game.game_id as u64))
+        Ok(CurrentGameInfo::new(*current_game.game_id() as u64, cgs))
     }
 
     pub async fn match_list(
@@ -160,10 +179,10 @@ impl<'a> Summoner<'a> {
         let champion_name = self
             .api
             .champion_data()
-            .champion_list
+            .champion_list()
             .iter()
-            .find(|c| c.key == champion_id)
-            .map(|c| c.name.to_owned())
+            .find(|c| *c.key() == champion_id)
+            .map(|c| c.name().to_owned())
             .expect("Couldn't find champion in system.");
 
         let mut wins = 0;
@@ -173,14 +192,14 @@ impl<'a> Summoner<'a> {
             .match_list(Some(
                 ByAccountIdParamsBuilder::default()
                     .champion(champion_id)
-                    .end_index(8)
+                    .end_index(10)
                     .build()?,
             ))
             .await
         {
             let mut all_matches = futures::stream::FuturesUnordered::new();
 
-            match_list.match_info.matches.iter().for_each(|m| {
+            match_list.match_info().matches().iter().for_each(|m| {
                 all_matches.push(m.match_data());
             });
 
@@ -188,20 +207,20 @@ impl<'a> Summoner<'a> {
                 match m {
                     Ok(m) => {
                         let participant_id = m
-                            .participant_identities
+                            .participant_identities()
                             .iter()
-                            .find(|p| p.player.summoner_id == self.summoner_info.id)
-                            .map(|p| p.participant_id)
+                            .find(|p| *p.player().summoner_id() == self.summoner_info.id)
+                            .map(|p| p.participant_id())
                             .expect("Could not find player info");
 
                         let match_result = m
-                            .participants
+                            .participants()
                             .iter()
-                            .find(|p| p.participant_id == participant_id)
-                            .map(|p| p.stats.win)
+                            .find(|p| p.participant_id() == participant_id)
+                            .map(|p| p.stats().win())
                             .expect("Couldn't find match result");
 
-                        if match_result {
+                        if *match_result {
                             wins += 1;
                         } else {
                             losses += 1;

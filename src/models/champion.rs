@@ -1,6 +1,9 @@
 use std::cmp::Ordering;
 
-#[derive(Debug)]
+use getset::{Getters, Setters};
+
+#[derive(Debug, Getters, Setters)]
+#[getset(get = "pub", set = "pub")]
 pub struct ChampionWinRate {
     champion_id: u32,
     champion_name: String,
@@ -14,7 +17,9 @@ pub struct ChampionWinRate {
 
 impl std::cmp::Ord for ChampionWinRate {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.team_id.cmp(&other.team_id).then(self.win_rate.cmp(&other.win_rate).reverse())
+        self.team_id
+            .cmp(&other.team_id)
+            .then(self.win_rate.cmp(&other.win_rate).reverse())
     }
 }
 
@@ -51,35 +56,7 @@ impl ChampionWinRate {
         }
     }
 
-    pub fn champion_name(&self) -> &str {
-        &self.champion_name
-    }
-
     pub fn win_rate_string(&self) -> String {
         format!("{}%", self.win_rate)
-    }
-
-    pub fn team_id(&self) -> u8 {
-        self.team_id
-    }
-
-    pub fn set_team_id(&mut self, team_id: u8) {
-        self.team_id = team_id
-    }
-
-    pub fn rank(&self) -> &str {
-        &self.rank
-    }
-
-    pub fn set_rank(&mut self, rank: String) {
-        self.rank = rank
-    }
-
-    pub fn summoner_name(&self) -> &str {
-        &self.summoner_name
-    }
-
-    pub fn set_summoner_name(&mut self, summoner_name: String) {
-        self.summoner_name = summoner_name
     }
 }

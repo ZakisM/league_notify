@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 
+use getset::Getters;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Getters, Serialize, Deserialize)]
+#[get = "pub"]
 pub struct ChampionData {
     #[serde(rename = "type")]
-    pub data_type: String,
-    pub format: String,
-    pub version: String,
+    data_type: String,
+    format: String,
+    version: String,
     #[serde(deserialize_with = "champion_list_deserializer")]
     #[serde(rename = "data")]
-    pub champion_list: Vec<Champion>,
+    champion_list: Vec<Champion>,
 }
 
 fn champion_list_deserializer<'de, D>(deserializer: D) -> Result<Vec<Champion>, D::Error>
@@ -31,65 +33,69 @@ where
         .expect("Failed to deserialize champion key to u16."))
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Getters, Serialize, Deserialize)]
+#[get = "pub"]
 #[serde(rename_all = "camelCase")]
 pub struct Champion {
-    pub version: String,
-    pub id: String,
+    version: String,
+    id: String,
     #[serde(deserialize_with = "string_to_u16")]
-    pub key: u32,
-    pub name: String,
-    pub title: String,
-    pub blurb: String,
-    pub info: Info,
-    pub image: Image,
-    pub tags: Vec<String>,
-    pub partype: String,
-    pub stats: Stats,
+    key: u32,
+    name: String,
+    title: String,
+    blurb: String,
+    info: Info,
+    image: Image,
+    tags: Vec<String>,
+    partype: String,
+    stats: Stats,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Getters, Serialize, Deserialize)]
+#[get = "pub"]
 #[serde(rename_all = "camelCase")]
 pub struct Info {
-    pub attack: i64,
-    pub defense: i64,
-    pub magic: i64,
-    pub difficulty: i64,
+    attack: i64,
+    defense: i64,
+    magic: i64,
+    difficulty: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Getters, Serialize, Deserialize)]
+#[get = "pub"]
 #[serde(rename_all = "camelCase")]
 pub struct Image {
-    pub full: String,
-    pub sprite: String,
-    pub group: String,
-    pub x: i64,
-    pub y: i64,
-    pub w: i64,
-    pub h: i64,
+    full: String,
+    sprite: String,
+    group: String,
+    x: i64,
+    y: i64,
+    w: i64,
+    h: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Getters, Serialize, Deserialize)]
+#[get = "pub"]
 #[serde(rename_all = "camelCase")]
 pub struct Stats {
-    pub hp: f64,
-    pub hpperlevel: i64,
-    pub mp: f64,
-    pub mpperlevel: f64,
-    pub movespeed: i64,
-    pub armor: f64,
-    pub armorperlevel: f64,
-    pub spellblock: f64,
-    pub spellblockperlevel: f64,
-    pub attackrange: i64,
-    pub hpregen: f64,
-    pub hpregenperlevel: f64,
-    pub mpregen: f64,
-    pub mpregenperlevel: f64,
-    pub crit: i64,
-    pub critperlevel: i64,
-    pub attackdamage: f64,
-    pub attackdamageperlevel: f64,
-    pub attackspeedperlevel: f64,
-    pub attackspeed: f64,
+    hp: f64,
+    hpperlevel: i64,
+    mp: f64,
+    mpperlevel: f64,
+    movespeed: i64,
+    armor: f64,
+    armorperlevel: f64,
+    spellblock: f64,
+    spellblockperlevel: f64,
+    attackrange: i64,
+    hpregen: f64,
+    hpregenperlevel: f64,
+    mpregen: f64,
+    mpregenperlevel: f64,
+    crit: i64,
+    critperlevel: i64,
+    attackdamage: f64,
+    attackdamageperlevel: f64,
+    attackspeedperlevel: f64,
+    attackspeed: f64,
 }
