@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::env;
 
 use clap::{App, Arg};
+use strum::VariantNames;
 use tokio::time::Duration;
 
 use crate::api::{Api, ApiRegion};
@@ -47,6 +48,7 @@ async fn main() -> Result<()> {
                 .long("region")
                 .help("API Region")
                 .takes_value(true)
+                .possible_values(&ApiRegion::VARIANTS)
                 .required(true),
         )
         .arg(

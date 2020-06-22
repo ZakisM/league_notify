@@ -6,7 +6,7 @@ use getset::Getters;
 use reqwest::header::HeaderValue;
 use reqwest::{Client, Method, Request, StatusCode};
 use serde::de::DeserializeOwned;
-use strum_macros::{Display, EnumString};
+use strum_macros::{Display, EnumString, EnumVariantNames};
 
 use crate::ddragon::updater::DDragonUpdater;
 use crate::endpoints::leagues::LeagueRankEndpoint;
@@ -168,7 +168,7 @@ impl<'a> Api<'a> {
     }
 }
 
-#[derive(Debug, Display, EnumString)]
+#[derive(Debug, Display, EnumString, EnumVariantNames)]
 #[allow(dead_code)]
 pub enum ApiRegion {
     BR1,
