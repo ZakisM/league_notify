@@ -9,6 +9,7 @@ pub struct ChampionWinRate {
     champion_name: String,
     wins: u8,
     losses: u8,
+    total_games: u8,
     win_rate: u16,
     team_id: u8,
     rank: String,
@@ -50,6 +51,7 @@ impl ChampionWinRate {
             wins,
             losses,
             win_rate,
+            total_games: wins + losses,
             team_id: 0,
             rank: "Unranked".to_owned(),
             summoner_name: "Unknown".to_owned(),
@@ -57,6 +59,15 @@ impl ChampionWinRate {
     }
 
     pub fn win_rate_string(&self) -> String {
-        format!("{}%", self.win_rate)
+        format!(
+            "{}% ({} {})",
+            self.win_rate,
+            self.total_games,
+            match self.total_games {
+                0 => "Games played",
+                1 => "Game",
+                _ => "Games",
+            }
+        )
     }
 }
