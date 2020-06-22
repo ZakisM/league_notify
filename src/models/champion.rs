@@ -59,15 +59,18 @@ impl ChampionWinRate {
     }
 
     pub fn win_rate_string(&self) -> String {
-        format!(
-            "{}% ({} {})",
-            self.win_rate,
-            self.total_games,
-            match self.total_games {
-                0 => "Games played",
-                1 => "Game",
-                _ => "Games",
-            }
-        )
+        if self.total_games > 0 {
+            format!(
+                "{}% in last {} {}.",
+                self.win_rate,
+                self.total_games,
+                match self.total_games {
+                    1 => "game",
+                    _ => "games",
+                }
+            )
+        } else {
+            format!("No games played.")
+        }
     }
 }
