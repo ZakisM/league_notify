@@ -2,9 +2,14 @@ use core::fmt;
 
 use serde::export::Formatter;
 
-#[derive(Debug)]
 pub struct ApiError {
     message: String,
+}
+
+impl fmt::Debug for ApiError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
 }
 
 impl fmt::Display for ApiError {
@@ -38,7 +43,7 @@ impl From<serde_json::Error> for ApiError {
 }
 
 impl From<std::string::String> for ApiError {
-    fn from(s: String) -> Self {
+    fn from(s: std::string::String) -> Self {
         Self { message: s }
     }
 }

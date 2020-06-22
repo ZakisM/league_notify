@@ -6,6 +6,7 @@ use getset::Getters;
 use reqwest::header::HeaderValue;
 use reqwest::{Client, Method, Request, StatusCode};
 use serde::de::DeserializeOwned;
+use strum_macros::{Display, EnumString};
 
 use crate::ddragon::updater::DDragonUpdater;
 use crate::endpoints::leagues::LeagueRankEndpoint;
@@ -167,7 +168,7 @@ impl<'a> Api<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Display, EnumString)]
 #[allow(dead_code)]
 pub enum ApiRegion {
     BR1,
@@ -181,12 +182,6 @@ pub enum ApiRegion {
     OC1,
     RU,
     TR1,
-}
-
-impl fmt::Display for ApiRegion {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }
 
 impl ApiRegion {

@@ -42,6 +42,14 @@ async fn main() -> Result<()> {
                 .required(true),
         )
         .arg(
+            Arg::with_name("region")
+                .short("r")
+                .long("region")
+                .help("API Region")
+                .takes_value(true)
+                .required(true),
+        )
+        .arg(
             Arg::with_name("name")
                 .short("n")
                 .long("name")
@@ -52,14 +60,21 @@ async fn main() -> Result<()> {
         .get_matches();
 
     let api_key = matches.value_of("key").expect("Missing API Key");
+
+    let region = matches
+        .value_of("region")
+        .expect("Missing API Region")
+        .parse()
+        .map_err(|_| ApiError::new("Invalid API Region"))?;
+
     let summoner_name = matches.value_of("name").expect("Missing Summoner name");
 
-    tokio::task::block_in_place(|| track_summoner(api_key, summoner_name)).await?;
+    tokio::task::block_in_place(|| track_summoner(api_key, region, summoner_name)).await?;
     Ok(())
 }
 
-pub async fn track_summoner(api_key: &str, summoner_name: &str) -> Result<()> {
-    let api = Api::new(api_key, ApiRegion::EUW1).await?;
+pub async fn track_summoner(api_key: &str, region: ApiRegion, summoner_name: &str) -> Result<()> {
+    let api = Api::new(api_key, region).await?;
 
     match api
         .get_summoner(summoner::SummonerEndpoint::ByName(summoner_name))
