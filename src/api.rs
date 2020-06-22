@@ -2,6 +2,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::time::Duration;
 
+use getset::Getters;
 use reqwest::header::HeaderValue;
 use reqwest::{Client, Method, Request, StatusCode};
 use serde::de::DeserializeOwned;
@@ -16,6 +17,8 @@ use crate::models::errors::ApiError;
 use crate::models::summoner::{Summoner, SummonerInfo};
 use crate::Result;
 
+#[derive(Getters)]
+#[get = "pub"]
 pub struct Api<'a> {
     key: &'a str,
     client: Client,
@@ -104,7 +107,7 @@ impl<'a> Api<'a> {
             for l in self.limiters.iter() {
                 if l.take().is_err() {
                     //delay task for minimum refill time + 1s ish
-                    tokio::time::delay_for(Duration::from_secs(2)).await;
+                    tokio::time::delay_for(Duration::from_millis(250)).await;
                     is_ok = false;
                 }
 
@@ -156,15 +159,11 @@ impl<'a> Api<'a> {
                 }
                 _ => {
                     //try again in 1 sec
-                    tokio::time::delay_for(Duration::from_secs(1)).await;
+                    tokio::time::delay_for(Duration::from_millis(500)).await;
                     continue 'outer;
                 }
             }
         }
-    }
-
-    pub fn champion_data(&self) -> &ChampionData {
-        &self.champion_data
     }
 }
 
@@ -279,7 +278,7 @@ mod tests {
     #[tokio::test]
     async fn test_limiter() {
         let lmtr1 = Limiter::new(20, 1);
-        let lmtr2 = Limiter::new(100, 10);
+        let lmtr2 = Limiter::new(100, 5);
 
         let lmtrs = vec![lmtr1, lmtr2];
 

@@ -3,7 +3,6 @@ use core::fmt;
 use getset::Getters;
 use serde::export::Formatter;
 use serde::{Deserialize, Serialize};
-use tokio::stream::StreamExt;
 
 use crate::api::Api;
 use crate::endpoints::lol_match::{ByAccountIdParams, ByAccountIdParamsBuilder};
@@ -126,18 +125,14 @@ impl<'a> Summoner<'a> {
     pub async fn current_game_info(&self) -> Result<CurrentGameInfo<'_>> {
         let current_game = self.spectator().await?;
 
-        let mut all_summoners = futures::stream::FuturesUnordered::new();
-
-        current_game.participants().iter().for_each(|p| {
-            all_summoners.push(
-                self.api
-                    .get_summoner(summoner::SummonerEndpoint::ByName(&p.summoner_name())),
-            )
-        });
-
         let mut cgs = Vec::with_capacity(10);
 
-        while let Some(summoner) = all_summoners.next().await {
+        for p in current_game.participants().iter() {
+            let summoner = self
+                .api
+                .get_summoner(summoner::SummonerEndpoint::ByName(&p.summoner_name()))
+                .await;
+
             match summoner {
                 Ok(summoner) => {
                     let (champion_id, team_id) = current_game
@@ -197,23 +192,19 @@ impl<'a> Summoner<'a> {
             ))
             .await
         {
-            let mut all_matches = futures::stream::FuturesUnordered::new();
+            for m in match_list.match_info().matches().iter() {
+                let match_data = m.match_data().await;
 
-            match_list.match_info().matches().iter().for_each(|m| {
-                all_matches.push(m.match_data());
-            });
-
-            while let Some(m) = all_matches.next().await {
-                match m {
-                    Ok(m) => {
-                        let participant_id = m
+                match match_data {
+                    Ok(match_data) => {
+                        let participant_id = match_data
                             .participant_identities()
                             .iter()
                             .find(|p| *p.player().summoner_id() == self.summoner_info.id)
                             .map(|p| p.participant_id())
                             .expect("Could not find player info");
 
-                        let match_result = m
+                        let match_result = match_data
                             .participants()
                             .iter()
                             .find(|p| p.participant_id() == participant_id)
