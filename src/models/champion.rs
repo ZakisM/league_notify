@@ -70,7 +70,7 @@ impl ChampionWinRate {
                 }
             )
         } else {
-            format!("No games played.")
+            "No games played.".to_owned()
         }
     }
 }

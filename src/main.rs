@@ -91,6 +91,8 @@ pub async fn track_summoner(api_key: &str, region: ApiRegion, summoner_name: &st
                         format!("{}-{}", &my_summoner.summoner_info().name(), cgi.game_id());
 
                     if !games_notified.contains(&game_notified_id) {
+                        info!("Game detected, loading info...");
+
                         let mut results = Vec::with_capacity(10);
 
                         for summoner_current_game_info in cgi.summoners().iter() {
@@ -128,8 +130,6 @@ pub async fn track_summoner(api_key: &str, region: ApiRegion, summoner_name: &st
 
                         games_notified.insert(game_notified_id);
                     }
-                } else {
-                    info!("Summoner is not currently in a game.");
                 }
 
                 tokio::time::delay_for(Duration::from_secs(30)).await;
