@@ -108,7 +108,7 @@ pub async fn track_summoner(api_key: &str, region: ApiRegion, summoner_name: &st
                                 if let Ok(rank) = summoner.solo_queue_rank().await {
                                     cwr.set_rank(format!(
                                         "{} {}",
-                                        rank.tier().to_owned().to_title_case(),
+                                        rank.tier().to_owned().title_case(),
                                         rank.rank()
                                     ));
                                 };

@@ -1,5 +1,7 @@
 use std::fmt;
 use std::fmt::Formatter;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use getset::Getters;
@@ -103,17 +105,10 @@ impl<'a> Api<'a> {
                 )));
             }
 
-            let mut is_ok = true;
-
             for l in self.limiters.iter() {
-                if l.take().is_err() {
-                    //delay task for minimum refill time + 1s ish
-                    tokio::time::delay_for(Duration::from_millis(250)).await;
-                    is_ok = false;
-                }
-
-                if !is_ok {
-                    continue 'outer;
+                // Wait until limiters no longer give us an error.
+                while l.take().is_err() {
+                    tokio::time::delay_for(Duration::from_millis(100)).await;
                 }
             }
 
@@ -138,15 +133,12 @@ impl<'a> Api<'a> {
                     if let Some(retry_after) = res.headers().get("retry-after") {
                         let delay = retry_after.to_str().unwrap().parse::<u64>().unwrap();
 
-                        for l in self.limiters.iter() {
-                            l.drain_all()?;
-                        }
+                        debug!(
+                            "TOO_MANY_REQUESTS received - Delaying for {} seconds.",
+                            delay
+                        );
 
                         tokio::time::delay_for(Duration::from_secs(delay)).await;
-
-                        for l in self.limiters.iter() {
-                            l.refill_all()?;
-                        }
                     }
                 }
                 StatusCode::NOT_FOUND => {
@@ -169,7 +161,7 @@ impl<'a> Api<'a> {
 }
 
 #[derive(Debug, Display, EnumString, EnumVariantNames)]
-#[allow(dead_code)]
+#[allow(dead_code, clippy::upper_case_acronyms)]
 pub enum ApiRegion {
     BR1,
     EUN1,
@@ -195,71 +187,43 @@ impl ApiRegion {
 
 #[derive(Debug)]
 pub struct Limiter {
-    channel: (
-        crossbeam::channel::Sender<()>,
-        crossbeam::channel::Receiver<()>,
-    ),
+    initial_size: usize,
+    bucket: Arc<AtomicUsize>,
     refill_time: u64,
 }
 
 impl Limiter {
     pub fn new(size: usize, refill_time: u64) -> Self {
-        let channel = crossbeam::bounded(size);
+        let bucket = AtomicUsize::new(size);
 
-        let tx_clone = channel.0.clone();
+        let bucket_ptr = Arc::new(bucket);
+
+        let refill_ptr = Arc::clone(&bucket_ptr);
 
         tokio::task::spawn(async move {
             loop {
                 tokio::time::delay_for(Duration::from_secs(refill_time)).await;
 
-                while !tx_clone.is_full() {
-                    if tx_clone.try_send(()).is_err() {
-                        error!("Error trying to refill");
-                    }
-                }
+                refill_ptr.store(size, Ordering::Release)
             }
         });
 
-        for _ in 0..size {
-            channel.0.send(()).expect("Failed to create limiter.");
-        }
-
         Limiter {
-            channel,
+            initial_size: size,
+            bucket: Arc::clone(&bucket_ptr),
             refill_time,
         }
     }
 
-    pub fn give(&self) -> Result<()> {
-        if self.channel.0.try_send(()).is_err() {
-            Err(ApiError::new("Error trying to refill."))
-        } else {
-            Ok(())
-        }
-    }
-
     pub fn take(&self) -> Result<()> {
-        if self.channel.1.try_recv().is_err() {
-            Err(ApiError::new("Have consumed all available items."))
-        } else {
+        let current = self.bucket.load(Ordering::Acquire);
+
+        if current > 0 {
+            self.bucket.fetch_sub(1, Ordering::Release);
             Ok(())
+        } else {
+            Err(ApiError::new("Bucket empty"))
         }
-    }
-
-    pub fn drain_all(&self) -> Result<()> {
-        while !self.channel.0.is_empty() {
-            self.take()?
-        }
-
-        Ok(())
-    }
-
-    pub fn refill_all(&self) -> Result<()> {
-        while !self.channel.0.is_full() {
-            self.give()?
-        }
-
-        Ok(())
     }
 }
 
@@ -281,49 +245,15 @@ mod tests {
 
         for _ in 0..102 {
             all_threads.push(async {
-                'outer: loop {
-                    let mut is_ok = true;
-
-                    for l in lmtrs.iter() {
-                        if let Err(e) = l.take() {
-                            tokio::time::delay_for(Duration::from_secs(1)).await;
-                            is_ok = false;
-                        }
-
-                        if !is_ok {
-                            continue 'outer;
-                        }
-                    }
-
-                    if is_ok {
-                        break;
+                for l in lmtrs.iter() {
+                    // Wait until limiters no longer give us an error.
+                    while l.take().is_err() {
+                        tokio::time::delay_for(Duration::from_millis(100)).await;
                     }
                 }
             });
         }
 
         while let Some(r) = all_threads.next().await {}
-    }
-
-    #[tokio::test]
-    async fn test_drain_all() {
-        let lmtr = Limiter::new(50, 1);
-
-        lmtr.drain_all().expect("Failed to drain all");
-
-        assert!(lmtr.channel.0.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_refill_all() {
-        let lmtr = Limiter::new(50, 1);
-
-        lmtr.drain_all().expect("Failed to drain all");
-
-        assert!(lmtr.channel.0.is_empty());
-
-        lmtr.refill_all().expect("Failed to refill all");
-
-        assert!(lmtr.channel.0.is_full());
     }
 }
