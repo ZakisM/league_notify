@@ -133,10 +133,19 @@ impl<'a> Api<'a> {
                     if let Some(retry_after) = res.headers().get("retry-after") {
                         let delay = retry_after.to_str().unwrap().parse::<u64>().unwrap();
 
+                        // Empty all buckets to stop any requests in other threads from continuing
+                        for l in self.limiters.iter() {
+                            l.empty();
+                        }
+
                         debug!(
                             "TOO_MANY_REQUESTS received - Delaying for {} seconds.",
                             delay
                         );
+
+                        for l in self.limiters.iter() {
+                            l.refill();
+                        }
 
                         tokio::time::delay_for(Duration::from_secs(delay)).await;
                     }
@@ -215,6 +224,14 @@ impl Limiter {
         }
     }
 
+    pub fn refill(&self) {
+        self.bucket.store(self.initial_size, Ordering::Release);
+    }
+
+    pub fn empty(&self) {
+        self.bucket.store(0, Ordering::Release);
+    }
+
     pub fn take(&self) -> Result<()> {
         let current = self.bucket.load(Ordering::Acquire);
 
@@ -254,6 +271,6 @@ mod tests {
             });
         }
 
-        while let Some(r) = all_threads.next().await {}
+        while let Some(_) = all_threads.next().await {}
     }
 }
