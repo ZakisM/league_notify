@@ -25,7 +25,7 @@ pub struct Participant {
     team_id: i64,
     spell1_id: i64,
     spell2_id: i64,
-    champion_id: i64,
+    champion_id: u64,
     profile_icon_id: i64,
     summoner_name: String,
     bot: bool,
@@ -54,7 +54,7 @@ pub struct Observers {
 #[get = "pub"]
 #[serde(rename_all = "camelCase")]
 pub struct BannedChampion {
-    champion_id: i64,
+    champion_id: u64,
     team_id: i64,
     pick_turn: i64,
 }

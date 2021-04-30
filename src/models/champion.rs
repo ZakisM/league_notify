@@ -5,7 +5,7 @@ use getset::{Getters, Setters};
 #[derive(Debug, Getters, Setters)]
 #[getset(get = "pub", set = "pub")]
 pub struct ChampionWinRate {
-    champion_id: u32,
+    champion_id: u64,
     champion_name: String,
     wins: u8,
     losses: u8,
@@ -39,7 +39,7 @@ impl std::cmp::PartialEq for ChampionWinRate {
 }
 
 impl ChampionWinRate {
-    pub fn new(champion_id: u32, champion_name: String, wins: u8, losses: u8) -> Self {
+    pub fn new(champion_id: u64, champion_name: String, wins: u8, losses: u8) -> Self {
         let w_f32 = wins as f32;
         let l_f32 = losses as f32;
 

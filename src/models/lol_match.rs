@@ -79,7 +79,7 @@ pub struct Team {
 pub struct Participant {
     participant_id: i64,
     team_id: i64,
-    champion_id: i64,
+    champion_id: u64,
     spell1_id: i64,
     spell2_id: i64,
     highest_achieved_season_tier: Option<String>,

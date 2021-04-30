@@ -15,7 +15,7 @@ pub enum MatchEndpoint<'a> {
 #[builder(setter(strip_option), default)]
 #[serde(rename_all = "camelCase")]
 pub struct ByAccountIdParams {
-    champion: Option<u32>,
+    champion: Option<u64>,
     queue: Option<u8>,
     season: Option<u8>,
     end_time: Option<u64>,

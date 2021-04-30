@@ -24,13 +24,13 @@ where
     Ok(data.into_iter().map(|(_, v)| v).collect())
 }
 
-fn string_to_u16<'de, D>(deserializer: D) -> Result<u32, D::Error>
+fn string_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
     D: serde::de::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
     Ok(s.parse()
-        .expect("Failed to deserialize champion key to u16."))
+        .expect("Failed to deserialize champion key to u64."))
 }
 
 #[derive(Debug, Getters, Serialize, Deserialize)]
@@ -39,8 +39,8 @@ where
 pub struct Champion {
     version: String,
     id: String,
-    #[serde(deserialize_with = "string_to_u16")]
-    key: u32,
+    #[serde(deserialize_with = "string_to_u64")]
+    key: u64,
     name: String,
     title: String,
     blurb: String,

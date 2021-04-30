@@ -31,12 +31,12 @@ pub struct SummonerInfo {
 #[get = "pub"]
 pub struct SummonerCurrentGameInfo<'a> {
     summoner: Summoner<'a>,
-    champion_id: u32,
+    champion_id: u64,
     team_id: u8,
 }
 
 impl<'a> SummonerCurrentGameInfo<'a> {
-    pub fn new(summoner: Summoner<'a>, champion_id: u32, team_id: u8) -> Self {
+    pub fn new(summoner: Summoner<'a>, champion_id: u64, team_id: u8) -> Self {
         SummonerCurrentGameInfo {
             summoner,
             champion_id,
@@ -139,7 +139,7 @@ impl<'a> Summoner<'a> {
                         .participants()
                         .iter()
                         .find(|p| *p.summoner_id() == summoner.summoner_info.id)
-                        .map(|p| (*p.champion_id() as u32, p.team_id()))
+                        .map(|p| (*p.champion_id(), p.team_id()))
                         .expect("Couldn't map summoner to their champion");
 
                     cgs.push(SummonerCurrentGameInfo::new(
@@ -170,7 +170,7 @@ impl<'a> Summoner<'a> {
         Ok(LeagueMatchList::new(match_list, self.api))
     }
 
-    pub async fn champion_win_rate(&self, champion_id: u32) -> Result<ChampionWinRate> {
+    pub async fn champion_win_rate(&self, champion_id: u64) -> Result<ChampionWinRate> {
         let champion_name = self
             .api
             .champion_data()
