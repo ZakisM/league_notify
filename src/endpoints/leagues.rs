@@ -1,4 +1,4 @@
-const LEAGUES_ENDPOINT: &str = "/lol/league/v4";
+const LEAGUES_ENDPOINT: &str = "lol/league/v4";
 
 #[allow(unused)]
 pub enum LeagueRankEndpoint<'a> {

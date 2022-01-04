@@ -9,6 +9,7 @@
       <w>attackspeedperlevel</w>
       <w>crit</w>
       <w>critperlevel</w>
+      <w>ddragon</w>
       <w>hpperlevel</w>
       <w>hpregen</w>
       <w>hpregenperlevel</w>
@@ -19,6 +20,7 @@
       <w>mpregen</w>
       <w>mpregenperlevel</w>
       <w>partype</w>
+      <w>puiid</w>
       <w>puuid</w>
       <w>riotgames</w>
       <w>spellblock</w>

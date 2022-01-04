@@ -1,58 +1,47 @@
+use std::fmt::Write;
+
 use serde::Serialize;
 
-const MATCH_ENDPOINT: &str = "/lol/match/v4";
+const MATCH_ENDPOINT: &str = "lol/match/v5/matches";
 
 #[allow(unused)]
 pub enum MatchEndpoint<'a> {
-    ByMatchId(&'a i64),
-    ByAccountId(&'a str, Option<ByAccountIdParams>),
+    ByPuuid(&'a str, Option<ByPuiidParams>),
+    ByMatchId(&'a str),
     TimelineByMatchId(&'a str),
-    ByTournamentCode(&'a str),
-    ByMatchIdTournamentCode(&'a str, &'a str),
 }
 
 #[derive(Builder, Default, Serialize)]
 #[builder(setter(strip_option), default)]
 #[serde(rename_all = "camelCase")]
-pub struct ByAccountIdParams {
-    champion: Option<u64>,
+pub struct ByPuiidParams {
+    start_time: Option<i64>,
+    end_time: Option<i64>,
     queue: Option<u8>,
-    season: Option<u8>,
-    end_time: Option<u64>,
-    begin_time: Option<u64>,
-    end_index: Option<u16>,
-    start_index: Option<u16>,
+    r#type: Option<String>,
+    start: Option<u8>,
+    count: Option<u8>,
 }
 
 impl MatchEndpoint<'_> {
-    pub fn url(&self) -> String {
+    pub fn url(self) -> String {
         match self {
-            MatchEndpoint::ByMatchId(match_id) => {
-                format!("{}/matches/{}", MATCH_ENDPOINT, match_id)
-            }
-            MatchEndpoint::ByAccountId(encrypted_account_id, params) => format!(
-                "{}/matchlists/by-account/{}{}",
-                MATCH_ENDPOINT,
-                encrypted_account_id,
-                match params {
-                    None => "".to_owned(),
-                    Some(p) => format!(
-                        "?{}",
-                        &serde_url_params::to_string(&p).expect("Invalid params")
-                    ),
+            MatchEndpoint::ByPuuid(puuid, params) => {
+                let mut res = format!("{}/by-puuid/{}/ids", MATCH_ENDPOINT, puuid);
+
+                if let Some(params) = params.and_then(|p| serde_url_params::to_string(&p).ok()) {
+                    write!(res, "?{}", params)
+                        .expect("Failed to generate MatchEndpoint::ByPuuid with params");
                 }
-            ),
-            MatchEndpoint::TimelineByMatchId(match_id) => {
-                format!("{}/timelines/by-match/{}", MATCH_ENDPOINT, match_id)
+
+                res
             }
-            MatchEndpoint::ByTournamentCode(tournament_code) => format!(
-                "{}/matches/by-tournament-code/{}/ids",
-                MATCH_ENDPOINT, tournament_code
-            ),
-            MatchEndpoint::ByMatchIdTournamentCode(match_id, tournament_code) => format!(
-                "{}/matches/{}/by-tournament-code/{}",
-                MATCH_ENDPOINT, match_id, tournament_code
-            ),
+            MatchEndpoint::ByMatchId(match_id) => {
+                format!("{}/{}", MATCH_ENDPOINT, match_id)
+            }
+            MatchEndpoint::TimelineByMatchId(match_id) => {
+                format!("{}/{}/timeline", MATCH_ENDPOINT, match_id)
+            }
         }
     }
 }

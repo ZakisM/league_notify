@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use getset::Getters;
-use reqwest::header::HeaderValue;
-use reqwest::{Client, Method, Request, StatusCode};
+use anyhow::anyhow;
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{Client, ClientBuilder, StatusCode};
 use serde::de::DeserializeOwned;
 use strum_macros::{Display, EnumString, EnumVariantNames};
 
@@ -14,21 +14,19 @@ use crate::ddragon::updater::DDragonUpdater;
 use crate::endpoints::leagues::LeagueRankEndpoint;
 use crate::endpoints::lol_match::MatchEndpoint;
 use crate::endpoints::spectator::SpectatorEndpoint;
-use crate::endpoints::summoner::SummonerEndpoint;
+use crate::endpoints::summoner::SummonerEndpointBy;
 use crate::models::ddragon_champions::ChampionData;
-use crate::models::errors::ApiError;
 use crate::models::summoner::{Summoner, SummonerInfo};
 use crate::Result;
 
-#[derive(Getters)]
-#[get = "pub"]
 pub struct Api<'a> {
     key: &'a str,
     client: Client,
     root_endpoint: String,
+    v5_root_endpoint: String,
     region: ApiRegion,
     limiters: Vec<Limiter>,
-    champion_data: ChampionData,
+    pub champion_data: ChampionData,
 }
 
 impl fmt::Debug for Api<'_> {
@@ -45,6 +43,20 @@ impl fmt::Display for Api<'_> {
 
 impl<'a> Api<'a> {
     pub async fn new(key: &'a str, region: ApiRegion) -> Result<Api<'a>> {
+        let mut default_headers = HeaderMap::new();
+
+        default_headers.insert(
+            "X-Riot-Token",
+            HeaderValue::from_str(key).expect("Invalid API Key"),
+        );
+
+        let client = ClientBuilder::new()
+            .gzip(true)
+            .default_headers(default_headers)
+            .timeout(Duration::from_secs(5))
+            .connect_timeout(Duration::from_secs(5))
+            .build()?;
+
         let l1 = Limiter::new(20, 1);
         let l2 = Limiter::new(100, 120);
 
@@ -55,16 +67,17 @@ impl<'a> Api<'a> {
 
         Ok(Self {
             key,
-            client: Client::new(),
+            client,
             root_endpoint: region.get_root_endpoint(),
+            v5_root_endpoint: region.get_v5_root_endpoint(),
             region,
             limiters,
             champion_data,
         })
     }
 
-    pub async fn get_summoner(&self, endpoint: SummonerEndpoint<'_>) -> Result<Summoner<'_>> {
-        let res = self.call_endpoint(endpoint.url()).await?;
+    pub async fn get_summoner(&self, endpoint: SummonerEndpointBy<'_>) -> Result<Summoner<'_>> {
+        let res = self.call_endpoint(endpoint.url(), false).await?;
         let summoner_info = serde_json::from_str::<SummonerInfo>(&res)?;
 
         Ok(Summoner::new(summoner_info, self))
@@ -74,13 +87,13 @@ impl<'a> Api<'a> {
         &self,
         endpoint: SpectatorEndpoint<'_>,
     ) -> Result<T> {
-        let res = self.call_endpoint(endpoint.url()).await?;
+        let res = self.call_endpoint(endpoint.url(), false).await?;
 
         Ok(serde_json::from_str::<T>(&res)?)
     }
 
     pub async fn get_match<T: DeserializeOwned>(&self, endpoint: MatchEndpoint<'_>) -> Result<T> {
-        let res = self.call_endpoint(endpoint.url()).await?;
+        let res = self.call_endpoint(endpoint.url(), true).await?;
 
         Ok(serde_json::from_str::<T>(&res)?)
     }
@@ -89,42 +102,37 @@ impl<'a> Api<'a> {
         &self,
         endpoint: LeagueRankEndpoint<'_>,
     ) -> Result<T> {
-        let res = self.call_endpoint(endpoint.url()).await?;
+        let res = self.call_endpoint(endpoint.url(), false).await?;
 
         Ok(serde_json::from_str::<T>(&res)?)
     }
 
-    async fn call_endpoint(&self, endpoint_url: String) -> Result<String> {
+    async fn call_endpoint(&self, endpoint_url: String, is_v5: bool) -> Result<String> {
         let mut attempts = 0;
 
         'outer: loop {
             if attempts == 3 {
-                return Err(ApiError::new(format!(
-                    "Failed to make request: {}",
-                    endpoint_url
-                )));
+                return Err(anyhow!("Failed to make request: {}", endpoint_url));
             }
 
             for l in self.limiters.iter() {
                 // Wait until limiters no longer give us an error.
                 while l.take().is_err() {
-                    tokio::time::delay_for(Duration::from_millis(100)).await;
+                    tokio::time::sleep(Duration::from_millis(100)).await;
                 }
             }
 
-            let mut req = Request::new(
-                Method::GET,
-                format!("{}/{}", self.root_endpoint, endpoint_url)
-                    .parse()
-                    .expect("Invalid URL"),
-            );
+            let root_endpoint = if !is_v5 {
+                &self.root_endpoint
+            } else {
+                &self.v5_root_endpoint
+            };
 
-            req.headers_mut().insert(
-                "X-Riot-Token",
-                HeaderValue::from_str(self.key).expect("Invalid API Key"),
-            );
-
-            let res = self.client.execute(req).await?;
+            let res = self
+                .client
+                .get(format!("{}/{}", root_endpoint, endpoint_url))
+                .send()
+                .await?;
 
             attempts += 1;
 
@@ -138,7 +146,7 @@ impl<'a> Api<'a> {
                             l.empty();
                         }
 
-                        debug!(
+                        info!(
                             "TOO_MANY_REQUESTS received - Delaying for {} seconds.",
                             delay
                         );
@@ -147,21 +155,18 @@ impl<'a> Api<'a> {
                             l.refill();
                         }
 
-                        tokio::time::delay_for(Duration::from_secs(delay)).await;
+                        tokio::time::sleep(Duration::from_secs(delay)).await;
                     }
                 }
                 StatusCode::NOT_FOUND => {
-                    return Err(ApiError::new(format!(
-                        "No data was found for endpoint: {}",
-                        endpoint_url
-                    )));
+                    return Err(anyhow!("No data was found for endpoint: {}", endpoint_url));
                 }
                 StatusCode::OK => {
                     return Ok(res.text().await?);
                 }
                 _ => {
                     //try again in 1 sec
-                    tokio::time::delay_for(Duration::from_millis(500)).await;
+                    tokio::time::sleep(Duration::from_millis(500)).await;
                     continue 'outer;
                 }
             }
@@ -192,13 +197,24 @@ impl ApiRegion {
             self.to_string().to_lowercase()
         )
     }
+
+    fn get_v5_root_endpoint(&self) -> String {
+        let routing_value = match self {
+            ApiRegion::NA1 | ApiRegion::BR1 | ApiRegion::LA1 | ApiRegion::LA2 | ApiRegion::OC1 => {
+                "americas"
+            }
+            ApiRegion::EUN1 | ApiRegion::EUW1 | ApiRegion::RU | ApiRegion::TR1 => "europe",
+            ApiRegion::JP1 | ApiRegion::KR => "asia",
+        };
+
+        format!("https://{}.api.riotgames.com", routing_value)
+    }
 }
 
 #[derive(Debug)]
 pub struct Limiter {
     initial_size: usize,
     bucket: Arc<AtomicUsize>,
-    refill_time: u64,
 }
 
 impl Limiter {
@@ -211,7 +227,7 @@ impl Limiter {
 
         tokio::task::spawn(async move {
             loop {
-                tokio::time::delay_for(Duration::from_secs(refill_time)).await;
+                tokio::time::sleep(Duration::from_secs(refill_time)).await;
 
                 refill_ptr.store(size, Ordering::Release)
             }
@@ -220,7 +236,6 @@ impl Limiter {
         Limiter {
             initial_size: size,
             bucket: Arc::clone(&bucket_ptr),
-            refill_time,
         }
     }
 
@@ -239,38 +254,7 @@ impl Limiter {
             self.bucket.fetch_sub(1, Ordering::Release);
             Ok(())
         } else {
-            Err(ApiError::new("Bucket empty"))
+            Err(anyhow!("Bucket empty"))
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use tokio::stream::StreamExt;
-    use tokio::time::Duration;
-
-    use crate::api::Limiter;
-
-    #[tokio::test]
-    async fn test_limiter() {
-        let lmtr1 = Limiter::new(20, 1);
-        let lmtr2 = Limiter::new(100, 5);
-
-        let lmtrs = vec![lmtr1, lmtr2];
-
-        let mut all_threads = futures::stream::FuturesUnordered::new();
-
-        for _ in 0..102 {
-            all_threads.push(async {
-                for l in lmtrs.iter() {
-                    // Wait until limiters no longer give us an error.
-                    while l.take().is_err() {
-                        tokio::time::delay_for(Duration::from_millis(100)).await;
-                    }
-                }
-            });
-        }
-
-        while let Some(_) = all_threads.next().await {}
     }
 }

@@ -33,10 +33,10 @@ pub fn generate_table(my_summoner: &Summoner<'_>, results: Vec<ChampionWinRate>)
     ]);
 
     for cwr in results.iter() {
-        let name_colour = if cwr.summoner_name() == my_summoner.summoner_info().name() {
+        let name_colour = if cwr.summoner_name == my_summoner.summoner_info.name {
             player_color
         } else {
-            match cwr.team_id() {
+            match cwr.team_id {
                 100 => team_1_colour,
                 200 => team_2_colour,
                 _ => no_colour,
@@ -44,9 +44,9 @@ pub fn generate_table(my_summoner: &Summoner<'_>, results: Vec<ChampionWinRate>)
         };
 
         table.add_row(vec![
-            comfy_table::Cell::new(cwr.champion_name()).fg(name_colour),
+            comfy_table::Cell::new(cwr.champion_name.clone()).fg(name_colour),
             comfy_table::Cell::new(&cwr.win_rate_string()),
-            comfy_table::Cell::new(cwr.rank()),
+            comfy_table::Cell::new(cwr.rank.clone()),
         ]);
     }
 

@@ -1,42 +1,39 @@
-use core::fmt;
+use std::fmt;
+use std::fmt::Formatter;
 
-use getset::Getters;
-use serde::export::Formatter;
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 
 use crate::api::Api;
-use crate::endpoints::lol_match::{ByAccountIdParams, ByAccountIdParamsBuilder};
+use crate::endpoints::lol_match::{ByPuiidParams, ByPuiidParamsBuilder};
 use crate::endpoints::{leagues, lol_match, spectator, summoner};
 use crate::models::champion::ChampionWinRate;
-use crate::models::errors::ApiError;
 use crate::models::leagues::LeagueRank;
-use crate::models::lol_match::{LeagueMatchList, MatchInfo};
+use crate::models::lol_match::LeagueMatchList;
 use crate::models::spectator::SpectatorInfo;
 use crate::Result;
 
-#[derive(Debug, Getters, Serialize, Deserialize)]
-#[get = "pub"]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SummonerInfo {
-    id: String,
-    account_id: String,
-    puuid: String,
-    name: String,
-    profile_icon_id: i64,
-    revision_date: i64,
-    summoner_level: i64,
+    pub id: String,
+    pub account_id: String,
+    pub puuid: String,
+    pub name: String,
+    pub profile_icon_id: i64,
+    pub revision_date: i64,
+    pub summoner_level: i64,
 }
 
-#[derive(Debug, Getters)]
-#[get = "pub"]
+#[derive(Debug)]
 pub struct SummonerCurrentGameInfo<'a> {
-    summoner: Summoner<'a>,
-    champion_id: u64,
-    team_id: u8,
+    pub summoner: Summoner<'a>,
+    pub champion_id: i64,
+    pub team_id: u8,
 }
 
 impl<'a> SummonerCurrentGameInfo<'a> {
-    pub fn new(summoner: Summoner<'a>, champion_id: u64, team_id: u8) -> Self {
+    pub fn new(summoner: Summoner<'a>, champion_id: i64, team_id: u8) -> Self {
         SummonerCurrentGameInfo {
             summoner,
             champion_id,
@@ -45,11 +42,10 @@ impl<'a> SummonerCurrentGameInfo<'a> {
     }
 }
 
-#[derive(Getters)]
-#[get = "pub"]
+#[derive(Debug)]
 pub struct CurrentGameInfo<'a> {
-    game_id: u64,
-    summoners: Vec<SummonerCurrentGameInfo<'a>>,
+    pub game_id: u64,
+    pub summoners: Vec<SummonerCurrentGameInfo<'a>>,
 }
 
 impl<'a> CurrentGameInfo<'a> {
@@ -58,11 +54,8 @@ impl<'a> CurrentGameInfo<'a> {
     }
 }
 
-#[derive(Getters)]
-#[get = "pub"]
 pub struct Summoner<'a> {
-    summoner_info: SummonerInfo,
-    #[get]
+    pub summoner_info: SummonerInfo,
     api: &'a Api<'a>,
 }
 
@@ -115,9 +108,9 @@ impl<'a> Summoner<'a> {
 
         match league_ranks
             .into_iter()
-            .find(|l| l.queue_type() == "RANKED_SOLO_5x5")
+            .find(|l| l.queue_type == "RANKED_SOLO_5x5")
         {
-            None => Err(ApiError::new("Could not find league rank.")),
+            None => Err(anyhow!("Could not find league rank.")),
             Some(l) => Ok(l),
         }
     }
@@ -127,42 +120,42 @@ impl<'a> Summoner<'a> {
 
         let mut cgs = Vec::with_capacity(10);
 
-        for p in current_game.participants().iter() {
+        for p in current_game.participants.iter() {
             let summoner = self
                 .api
-                .get_summoner(summoner::SummonerEndpoint::ByName(&p.summoner_name()))
+                .get_summoner(summoner::SummonerEndpointBy::Name(&p.summoner_name))
                 .await;
 
             match summoner {
                 Ok(summoner) => {
                     let (champion_id, team_id) = current_game
-                        .participants()
+                        .participants
                         .iter()
-                        .find(|p| *p.summoner_id() == summoner.summoner_info.id)
-                        .map(|p| (*p.champion_id(), p.team_id()))
+                        .find(|p| p.summoner_id == summoner.summoner_info.id)
+                        .map(|p| (p.champion_id, p.team_id))
                         .expect("Couldn't map summoner to their champion");
 
                     cgs.push(SummonerCurrentGameInfo::new(
                         summoner,
                         champion_id,
-                        *team_id as u8,
+                        team_id as u8,
                     ));
                 }
                 Err(e) => error!("{}", e),
             }
         }
 
-        Ok(CurrentGameInfo::new(*current_game.game_id() as u64, cgs))
+        Ok(CurrentGameInfo::new(current_game.game_id as u64, cgs))
     }
 
-    pub async fn match_list(
+    pub async fn match_ids_list(
         &self,
-        params: Option<ByAccountIdParams>,
+        params: Option<ByPuiidParams>,
     ) -> Result<LeagueMatchList<'_>> {
         let match_list = self
             .api
-            .get_match::<MatchInfo>(lol_match::MatchEndpoint::ByAccountId(
-                &self.summoner_info.account_id,
+            .get_match::<Vec<String>>(lol_match::MatchEndpoint::ByPuuid(
+                &self.summoner_info.puuid,
                 params,
             ))
             .await?;
@@ -170,51 +163,42 @@ impl<'a> Summoner<'a> {
         Ok(LeagueMatchList::new(match_list, self.api))
     }
 
-    pub async fn champion_win_rate(&self, champion_id: u64) -> Result<ChampionWinRate> {
+    pub async fn champion_win_rate(&self, champion_id: i64) -> Result<ChampionWinRate> {
         let champion_name = self
             .api
-            .champion_data()
-            .champion_list()
+            .champion_data
+            .champion_list
             .iter()
-            .find(|c| *c.key() == champion_id)
-            .map(|c| c.name().to_owned())
+            .find(|c| c.key == champion_id)
+            .map(|c| c.name.to_owned())
             .expect("Couldn't find champion in system.");
 
         let mut wins = 0;
         let mut losses = 0;
 
         if let Ok(match_list) = self
-            .match_list(Some(
-                ByAccountIdParamsBuilder::default()
-                    .champion(champion_id)
-                    .end_index(10)
-                    .build()?,
-            ))
+            .match_ids_list(Some(ByPuiidParamsBuilder::default().count(25).build()?))
             .await
         {
-            for m in match_list.match_info().matches().iter() {
+            for m in match_list.match_info.matches.iter() {
                 let match_data = m.match_data().await;
 
                 match match_data {
                     Ok(match_data) => {
-                        let participant_id = match_data
-                            .participant_identities()
+                        if let Some(match_result) = match_data
+                            .info
+                            .participants
                             .iter()
-                            .find(|p| *p.player().summoner_id() == self.summoner_info.id)
-                            .map(|p| p.participant_id())
-                            .expect("Could not find player info");
-
-                        let match_result = match_data
-                            .participants()
-                            .iter()
-                            .find(|p| p.participant_id() == participant_id)
-                            .map(|p| p.stats().win())
-                            .expect("Couldn't find match result");
-
-                        if *match_result {
-                            wins += 1;
-                        } else {
-                            losses += 1;
+                            .find(|p| {
+                                p.puuid == self.summoner_info.puuid && p.champion_id == champion_id
+                            })
+                            .map(|p| p.win)
+                        {
+                            if match_result {
+                                wins += 1;
+                            } else {
+                                losses += 1;
+                            }
                         }
                     }
                     Err(e) => error!("{}", e),

@@ -1,19 +1,14 @@
 use std::cmp::Ordering;
 
-use getset::{Getters, Setters};
-
-#[derive(Debug, Getters, Setters)]
-#[getset(get = "pub", set = "pub")]
+#[derive(Debug)]
 pub struct ChampionWinRate {
-    champion_id: u64,
-    champion_name: String,
-    wins: u8,
-    losses: u8,
-    total_games: u8,
-    win_rate: u16,
-    team_id: u8,
-    rank: String,
-    summoner_name: String,
+    pub champion_id: i64,
+    pub champion_name: String,
+    pub total_games: u8,
+    pub win_rate: u16,
+    pub team_id: u8,
+    pub rank: String,
+    pub summoner_name: String,
 }
 
 impl std::cmp::Ord for ChampionWinRate {
@@ -39,7 +34,7 @@ impl std::cmp::PartialEq for ChampionWinRate {
 }
 
 impl ChampionWinRate {
-    pub fn new(champion_id: u64, champion_name: String, wins: u8, losses: u8) -> Self {
+    pub fn new(champion_id: i64, champion_name: String, wins: u8, losses: u8) -> Self {
         let w_f32 = wins as f32;
         let l_f32 = losses as f32;
 
@@ -48,8 +43,6 @@ impl ChampionWinRate {
         ChampionWinRate {
             champion_id,
             champion_name,
-            wins,
-            losses,
             win_rate,
             total_games: wins + losses,
             team_id: 0,

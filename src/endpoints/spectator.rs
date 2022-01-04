@@ -1,4 +1,4 @@
-const SPECTATOR_ENDPOINT: &str = "/lol/spectator/v4";
+const SPECTATOR_ENDPOINT: &str = "lol/spectator/v4";
 
 #[allow(unused)]
 pub enum SpectatorEndpoint<'a> {
