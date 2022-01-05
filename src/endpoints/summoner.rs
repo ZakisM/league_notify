@@ -1,3 +1,5 @@
+use super::Endpoint;
+
 const SUMMONER_ENDPOINT: &str = "lol/summoner/v4/summoners";
 
 #[allow(unused)]
@@ -8,8 +10,8 @@ pub enum SummonerEndpointBy<'a> {
     SummonerId(&'a str),
 }
 
-impl SummonerEndpointBy<'_> {
-    pub fn url(&self) -> String {
+impl Endpoint for SummonerEndpointBy<'_> {
+    fn url(self) -> String {
         match self {
             SummonerEndpointBy::Account(encrypted_account_id) => {
                 format!("{}/by-account/{}", SUMMONER_ENDPOINT, encrypted_account_id)

@@ -2,6 +2,8 @@ use std::fmt::Write;
 
 use serde::Serialize;
 
+use super::Endpoint;
+
 const MATCH_ENDPOINT: &str = "lol/match/v5/matches";
 
 #[allow(unused)]
@@ -23,8 +25,8 @@ pub struct ByPuiidParams {
     count: Option<u8>,
 }
 
-impl MatchEndpoint<'_> {
-    pub fn url(self) -> String {
+impl Endpoint for MatchEndpoint<'_> {
+    fn url(self) -> String {
         match self {
             MatchEndpoint::ByPuuid(puuid, params) => {
                 let mut res = format!("{}/by-puuid/{}/ids", MATCH_ENDPOINT, puuid);

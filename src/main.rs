@@ -6,8 +6,9 @@ extern crate log;
 use std::collections::HashSet;
 use std::env;
 
-use anyhow::{anyhow, Result};
+use anyhow::anyhow;
 use clap::{App, Arg};
+use models::error::MyError;
 use strum::VariantNames;
 use tokio::time::Duration;
 
@@ -21,6 +22,8 @@ mod endpoints;
 mod models;
 mod table;
 mod util;
+
+type Result<T> = std::result::Result<T, MyError>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -130,7 +133,12 @@ pub async fn track_summoner(api_key: &str, region: ApiRegion, summoner_name: &st
                             games_notified.insert(game_notified_id);
                         }
                     }
-                    Err(e) => error!("{}", e),
+                    Err(e) => match e {
+                        MyError::Reqwest(_) | MyError::Serde(_) | MyError::Other(_) => {
+                            error!("{}", e)
+                        }
+                        _ => (),
+                    },
                 }
 
                 tokio::time::sleep(Duration::from_secs(30)).await;

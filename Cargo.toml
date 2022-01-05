@@ -17,6 +17,7 @@ clap = "3.0"
 strum = "0.23"
 strum_macros = "0.23"
 anyhow = "1.0"
+thiserror = "1.0"
 
 [dependencies.reqwest]
 version = "0.11"

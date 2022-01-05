@@ -27,7 +27,7 @@ pub struct Metadata {
 pub struct Info {
     pub game_creation: i64,
     pub game_duration: i64,
-    pub game_end_timestamp: i64,
+    pub game_end_timestamp: Option<i64>,
     pub game_id: i64,
     pub game_mode: String,
     pub game_name: String,
@@ -39,7 +39,7 @@ pub struct Info {
     pub platform_id: String,
     pub queue_id: i64,
     pub teams: Vec<Team>,
-    pub tournament_code: String,
+    pub tournament_code: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ pub struct Participant {
     pub gold_spent: i64,
     pub individual_position: String,
     pub inhibitor_kills: i64,
-    pub inhibitor_takedowns: i64,
+    pub inhibitor_takedowns: Option<i64>,
     pub inhibitors_lost: i64,
     pub item0: i64,
     pub item1: i64,
@@ -95,7 +95,7 @@ pub struct Participant {
     pub neutral_minions_killed: i64,
     pub nexus_kills: i64,
     pub nexus_lost: i64,
-    pub nexus_takedowns: i64,
+    pub nexus_takedowns: Option<i64>,
     pub objectives_stolen: i64,
     pub objectives_stolen_assists: i64,
     pub participant_id: i64,
@@ -152,7 +152,7 @@ pub struct Participant {
     pub true_damage_dealt_to_champions: i64,
     pub true_damage_taken: i64,
     pub turret_kills: i64,
-    pub turret_takedowns: i64,
+    pub turret_takedowns: Option<i64>,
     pub turrets_lost: i64,
     pub unreal_kills: i64,
     pub vision_score: i64,

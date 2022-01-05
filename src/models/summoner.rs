@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Formatter;
 
-use anyhow::anyhow;
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 
 use crate::api::Api;
@@ -12,6 +12,8 @@ use crate::models::leagues::LeagueRank;
 use crate::models::lol_match::LeagueMatchList;
 use crate::models::spectator::SpectatorInfo;
 use crate::Result;
+
+use super::error::MyError;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -106,17 +108,16 @@ impl<'a> Summoner<'a> {
             ))
             .await?;
 
-        match league_ranks
+        let rank = league_ranks
             .into_iter()
             .find(|l| l.queue_type == "RANKED_SOLO_5x5")
-        {
-            None => Err(anyhow!("Could not find league rank.")),
-            Some(l) => Ok(l),
-        }
+            .context("Could not find Solo Queue rank.")?;
+
+        Ok(rank)
     }
 
     pub async fn current_game_info(&self) -> Result<CurrentGameInfo<'_>> {
-        let current_game = self.spectator().await?;
+        let current_game = self.spectator().await.map_err(|_| MyError::NotInGame)?;
 
         let mut cgs = Vec::with_capacity(10);
 
@@ -177,7 +178,12 @@ impl<'a> Summoner<'a> {
         let mut losses = 0;
 
         if let Ok(match_list) = self
-            .match_ids_list(Some(ByPuiidParamsBuilder::default().count(25).build()?))
+            .match_ids_list(Some(
+                ByPuiidParamsBuilder::default()
+                    .count(15)
+                    .build()
+                    .expect("Failed to build Puiid Parameters."),
+            ))
             .await
         {
             for m in match_list.match_info.matches.iter() {

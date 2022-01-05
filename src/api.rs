@@ -15,7 +15,9 @@ use crate::endpoints::leagues::LeagueRankEndpoint;
 use crate::endpoints::lol_match::MatchEndpoint;
 use crate::endpoints::spectator::SpectatorEndpoint;
 use crate::endpoints::summoner::SummonerEndpointBy;
+use crate::endpoints::Endpoint;
 use crate::models::ddragon_champions::ChampionData;
+use crate::models::error::MyError;
 use crate::models::summoner::{Summoner, SummonerInfo};
 use crate::Result;
 
@@ -77,7 +79,7 @@ impl<'a> Api<'a> {
     }
 
     pub async fn get_summoner(&self, endpoint: SummonerEndpointBy<'_>) -> Result<Summoner<'_>> {
-        let res = self.call_endpoint(endpoint.url(), false).await?;
+        let res = self.call_endpoint(endpoint, false).await?;
         let summoner_info = serde_json::from_str::<SummonerInfo>(&res)?;
 
         Ok(Summoner::new(summoner_info, self))
@@ -87,13 +89,13 @@ impl<'a> Api<'a> {
         &self,
         endpoint: SpectatorEndpoint<'_>,
     ) -> Result<T> {
-        let res = self.call_endpoint(endpoint.url(), false).await?;
+        let res = self.call_endpoint(endpoint, false).await?;
 
         Ok(serde_json::from_str::<T>(&res)?)
     }
 
     pub async fn get_match<T: DeserializeOwned>(&self, endpoint: MatchEndpoint<'_>) -> Result<T> {
-        let res = self.call_endpoint(endpoint.url(), true).await?;
+        let res = self.call_endpoint(endpoint, true).await?;
 
         Ok(serde_json::from_str::<T>(&res)?)
     }
@@ -102,17 +104,22 @@ impl<'a> Api<'a> {
         &self,
         endpoint: LeagueRankEndpoint<'_>,
     ) -> Result<T> {
-        let res = self.call_endpoint(endpoint.url(), false).await?;
+        let res = self.call_endpoint(endpoint, false).await?;
 
         Ok(serde_json::from_str::<T>(&res)?)
     }
 
-    async fn call_endpoint(&self, endpoint_url: String, is_v5: bool) -> Result<String> {
+    async fn call_endpoint(&self, endpoint: impl Endpoint, is_v5: bool) -> Result<String> {
+        let endpoint_url = endpoint.url();
+
         let mut attempts = 0;
 
         'outer: loop {
             if attempts == 3 {
-                return Err(anyhow!("Failed to make request: {}", endpoint_url));
+                return Err(MyError::Other(anyhow!(
+                    "Failed to make request: {}",
+                    endpoint_url
+                )));
             }
 
             for l in self.limiters.iter() {
@@ -159,7 +166,10 @@ impl<'a> Api<'a> {
                     }
                 }
                 StatusCode::NOT_FOUND => {
-                    return Err(anyhow!("No data was found for endpoint: {}", endpoint_url));
+                    return Err(MyError::Other(anyhow!(
+                        "No data was found for endpoint: {}",
+                        endpoint_url
+                    )));
                 }
                 StatusCode::OK => {
                     return Ok(res.text().await?);
@@ -254,7 +264,7 @@ impl Limiter {
             self.bucket.fetch_sub(1, Ordering::Release);
             Ok(())
         } else {
-            Err(anyhow!("Bucket empty"))
+            Err(MyError::Other(anyhow!("Bucket empty")))
         }
     }
 }

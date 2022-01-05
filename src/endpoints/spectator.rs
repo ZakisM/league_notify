@@ -1,3 +1,5 @@
+use super::Endpoint;
+
 const SPECTATOR_ENDPOINT: &str = "lol/spectator/v4";
 
 #[allow(unused)]
@@ -6,8 +8,8 @@ pub enum SpectatorEndpoint<'a> {
     FeaturedGames,
 }
 
-impl SpectatorEndpoint<'_> {
-    pub fn url(&self) -> String {
+impl Endpoint for SpectatorEndpoint<'_> {
+    fn url(self) -> String {
         match self {
             SpectatorEndpoint::BySummonerId(encrypted_summoner_id) => format!(
                 "{}/active-games/by-summoner/{}",
